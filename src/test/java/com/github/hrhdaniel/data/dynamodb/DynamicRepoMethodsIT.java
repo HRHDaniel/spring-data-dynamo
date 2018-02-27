@@ -1,6 +1,9 @@
 package com.github.hrhdaniel.data.dynamodb;
 
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -75,16 +78,17 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
 
     @Override
     public void afterClass() {
-        DynamoDB dynamoDB = new DynamoDB(client);
-        DeleteTableRequest deleteTableRequest = mapper.generateDeleteTableRequest(CompositeKeyObject.class);
-        client.deleteTable(deleteTableRequest);
-        Table table = dynamoDB.getTable(deleteTableRequest.getTableName());
-
-        try {
-            table.waitForDelete();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+         DynamoDB dynamoDB = new DynamoDB(client);
+         DeleteTableRequest deleteTableRequest =
+         mapper.generateDeleteTableRequest(CompositeKeyObject.class);
+         client.deleteTable(deleteTableRequest);
+         Table table = dynamoDB.getTable(deleteTableRequest.getTableName());
+        
+         try {
+         table.waitForDelete();
+         } catch (InterruptedException e) {
+         throw new RuntimeException(e);
+         }
     }
 
     @Override
@@ -104,7 +108,8 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
         }
     }
 
-    private CompositeKeyObject createOne(String name, int size, String gender, String detail, boolean isBear) {
+    private CompositeKeyObject createOne(String name, int size, String gender, String detail, boolean isBear,
+            String... extraStrings) {
         CompositeKeyObject entity = new CompositeKeyObject();
         entity.setObjectName(name);
         entity.setObjectSize(size);
@@ -113,6 +118,7 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
         NestedObject nested = new NestedObject();
         nested.setSubData(detail);
         entity.setNested(nested);
+        entity.setExtraStrings(Arrays.asList(extraStrings));
         return entity;
     }
 
@@ -129,7 +135,8 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
             createOne("Kit Cloudkicker", 1, "M", "Air surfing", true),
             createOne("Baloo", 2, "M", "Pilot", true),
             createOne("Molly Cunningham", 1, "F", "Button Nose", true),
-            createOne("Wildcat", 3, "M", "mechanic", false));
+            createOne("Wildcat", 3, "M", "mechanic", false),
+            createOne("King Louie", 3, "M", null, false, "stout", "orange", "orangutan"));
 
     @Before
     public void beforeTest() {
@@ -157,7 +164,7 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
         List<CompositeKeyObject> items = repository.findByObjectNameIsNot("Baloo");
 
         // Then
-        int expectedCount = (int)loadedTestData.stream().filter(o -> !"Baloo".equals(o.getObjectName())).count();
+        int expectedCount = (int) loadedTestData.stream().filter(o -> !"Baloo".equals(o.getObjectName())).count();
         assertThat(items.size(), is(expectedCount));
         assertThat(items.get(0).getObjectName(), IsNot.not("Baloo"));
         assertThat(items.get(1).getObjectName(), IsNot.not("Baloo"));
@@ -178,23 +185,150 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
         assertThat(items.size(), is(1));
         assertThat(items.get(0).getObjectName(), is("Kit Cloudkicker"));
     }
-    
+
     @Test
     public void testIsFalse() {
         List<CompositeKeyObject> items = repository.findByBearIsFalse();
 
-        assertThat(items.size(), is(1));
+        assertThat(items.size(), is(2));
+        List<String> resultNames = items.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Wildcat", "King Louie"));
         assertThat(items.get(0).getObjectName(), is("Wildcat"));
     }
-    
+
     @Test
     public void testIsTrue() {
         List<CompositeKeyObject> items = repository.findByBearIsTrue();
-        
+
         assertThat(items.size(), is(3));
         List<String> names = items.stream().map(o -> o.getObjectName()).collect(Collectors.toList());
         assertThat(names, not(contains(("Wildcat"))));
-        
     }
 
+    @Test
+    public void testInList() {
+        List<String> searchFor = Arrays.asList("Molly Cunningham", "Kit Cloudkicker");
+
+        List<CompositeKeyObject> results = repository.findByObjectNameIn(searchFor);
+
+        assertThat(results.size(), is(2));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Molly Cunningham", "Kit Cloudkicker"));
+    }
+
+    @Test
+    public void testInArray() {
+        String[] searchFor = new String[] { "Molly Cunningham", "Kit Cloudkicker" };
+
+        List<CompositeKeyObject> results = repository.findByObjectNameIn(searchFor);
+
+        assertThat(results.size(), is(2));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Molly Cunningham", "Kit Cloudkicker"));
+    }
+
+    @Test
+    public void testOr() {
+        List<CompositeKeyObject> results = repository.findByObjectNameOrObjectName("Molly Cunningham",
+                "Kit Cloudkicker");
+
+        assertThat(results.size(), is(2));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Molly Cunningham", "Kit Cloudkicker"));
+    }
+
+    @Test
+    public void testBetween() {
+        List<CompositeKeyObject> results = repository.findByObjectSizeBetween(1, 2);
+
+        assertThat(results.size(), is(3));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Baloo", "Molly Cunningham", "Kit Cloudkicker"));
+    }
+
+    @Test
+    public void testGreaterThan() {
+        List<CompositeKeyObject> results = repository.findByObjectSizeGreaterThan(2);
+
+        assertThat(results.size(), is(2));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Wildcat", "King Louie"));
+    }
+
+    @Test
+    public void testGreaterThanEquals() {
+        List<CompositeKeyObject> results = repository.findByObjectSizeGreaterThanEqual(2);
+
+        assertThat(results.size(), is(3));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Wildcat", "Baloo", "King Louie"));
+    }
+
+    @Test
+    public void testLessThan() {
+        List<CompositeKeyObject> results = repository.findByObjectSizeLessThan(2);
+
+        assertThat(results.size(), is(2));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Molly Cunningham", "Kit Cloudkicker"));
+    }
+
+    @Test
+    public void testLessThanEquals() {
+        List<CompositeKeyObject> results = repository.findByObjectSizeLessThanEqual(2);
+
+        assertThat(results.size(), is(3));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, containsInAnyOrder("Baloo", "Molly Cunningham", "Kit Cloudkicker"));
+    }
+
+    @Test
+    public void testExists() {
+        List<CompositeKeyObject> results = repository.findByNestedSubDataExists();
+
+        assertThat(results.size(), is(4));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, not(hasItem("King Louie")));
+    }
+
+    @Test
+    public void testIsNull() {
+        List<CompositeKeyObject> results = repository.findByNestedSubDataIsNull();
+
+        assertThat(results.size(), is(1));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, hasItem("King Louie"));
+    }
+
+    @Test
+    public void testNotIn() {
+        List<String> searchFor = Arrays.asList("Molly Cunningham", "Kit Cloudkicker");
+        int expectedResults = loadedTestData.size() - 2;
+
+        List<CompositeKeyObject> results = repository.findByObjectNameNotIn(searchFor);
+
+        assertThat(results.size(), is(expectedResults));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, not(hasItems("Molly Cunningham", "Kit Cloudkicker")));
+    }
+
+    @Test
+    public void testContains() {
+        List<CompositeKeyObject> results = repository.findByExtraStringsContains("orange");
+
+        assertThat(results.size(), is(1));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, hasItem("King Louie"));
+    }
+    
+    @Test
+    public void testNotContains() {
+        int expectedResults = loadedTestData.size() - 1;
+
+        List<CompositeKeyObject> results = repository.findByExtraStringsNotContains("orange");
+
+        assertThat(results.size(), is(expectedResults));
+        List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
+        assertThat(resultNames, not(hasItem("King Louie")));
+    }
 }

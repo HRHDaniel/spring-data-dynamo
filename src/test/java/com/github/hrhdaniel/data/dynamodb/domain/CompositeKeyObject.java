@@ -1,5 +1,7 @@
 package com.github.hrhdaniel.data.dynamodb.domain;
 
+import java.util.List;
+
 import org.springframework.data.annotation.Id;
 
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBHashKey;
@@ -22,6 +24,8 @@ public class CompositeKeyObject {
     private NestedObject nested;
 
     private String gender;
+    
+    private List<String> extraStrings;
     
     @DynamoDBTyped(DynamoDBAttributeType.BOOL)
     private Boolean bear;
@@ -71,7 +75,15 @@ public class CompositeKeyObject {
     public void setBear(Boolean bear) {
         this.bear = bear;
     }
+    
+    public List<String> getExtraStrings() {
+        return extraStrings;
+    }
 
+    public void setExtraStrings(List<String> extraStrings) {
+        this.extraStrings = extraStrings;
+    }
+    
     public DynamoCompositeKey<String, Integer> getId() {
         // Don't really need this on our objects, but I am using this to make tests
         // easier
@@ -108,5 +120,6 @@ public class CompositeKeyObject {
             return false;
         return true;
     }
+
 
 }

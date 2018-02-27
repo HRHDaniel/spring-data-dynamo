@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBHashKey;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTable;
 
-@DynamoDBTable(tableName = "testtable")
+@DynamoDBTable(tableName = "testtable2")
 public class HashKeyOnlyTestObject {
 
     @Id

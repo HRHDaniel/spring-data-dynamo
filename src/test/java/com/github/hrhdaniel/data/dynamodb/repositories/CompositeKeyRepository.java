@@ -23,5 +23,31 @@ public interface CompositeKeyRepository extends DynamoRepository<CompositeKeyObj
     List<CompositeKeyObject> findByBearIsFalse();
 
     List<CompositeKeyObject> findByBearIsTrue();
+
+    List<CompositeKeyObject> findByObjectNameIn(List<String> names);
+    
+    List<CompositeKeyObject> findByObjectNameNotIn(List<String> names);
+    
+    List<CompositeKeyObject> findByObjectNameIn(String [] names);
+    
+    List<CompositeKeyObject> findByObjectNameOrObjectName(String name1, String name2);
+    
+    List<CompositeKeyObject> findByObjectSizeBetween(int sizeLow, int sizeHigh);
+
+    List<CompositeKeyObject> findByObjectSizeGreaterThanEqual(int size);
+
+    List<CompositeKeyObject> findByObjectSizeGreaterThan(int size);
+    
+    List<CompositeKeyObject> findByObjectSizeLessThan(int size);
+    
+    List<CompositeKeyObject> findByObjectSizeLessThanEqual(int size);
+    
+    List<CompositeKeyObject> findByNestedSubDataExists();
+    
+    List<CompositeKeyObject> findByNestedSubDataIsNull();
+    
+    List<CompositeKeyObject> findByExtraStringsContains(String string);
+    
+    List<CompositeKeyObject> findByExtraStringsNotContains(String string);
     
 }

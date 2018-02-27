@@ -1,12 +1,16 @@
 package com.github.hrhdaniel.data.dynamodb.query.criteria;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.data.repository.query.parser.Part;
+import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.ObjectUtils;
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.github.hrhdaniel.data.dynamodb.query.AWSAttributeValueHelper;
@@ -22,25 +26,30 @@ public class FieldCriteria extends Criteria {
     private int id;
     private Part part;
 
-    private String filterExpression;
     private Map<String, AttributeValue> attributeValues = new HashMap<>();
     private int varCount = 0;
     private String fieldPath;
-    private Iterator<Object> iterator;
-    private StringBuilder filter;
+    private Iterator<Object> arguments;
+    private StringBuilder filter = new StringBuilder();
 
     public FieldCriteria(int id, Part part, Iterator<Object> iterator) {
         this.id = id;
         this.part = part;
-        this.iterator = iterator;
+
+        List<Object> args = new ArrayList<>();
+        for (int i = 0; i < part.getNumberOfArguments(); i++) {
+            args.add(iterator.next());
+        }
+        arguments = args.iterator();
+
         this.fieldPath = DynamoFieldNameMapper.mapToDynamoName(part.getProperty());
-        filter = new StringBuilder();
-        filterExpression = createFilter();
+
+        createFilter();
     }
 
     @Override
     public String getFilterExpression(boolean ignoreKeys) {
-        return (ignoreKeys && isKey()) ? null : filterExpression;
+        return (ignoreKeys && isKey()) ? null : filter.toString();
     }
 
     @Override
@@ -81,8 +90,6 @@ public class FieldCriteria extends Criteria {
             addComparison(false, Operator.EQUAL);
             break;
         case IN:
-            // TODO ... iterator.next may return a list or array instead of using multiple
-            // .next() ?
             addInCondition();
             break;
         case EXISTS:
@@ -105,7 +112,8 @@ public class FieldCriteria extends Criteria {
             addComparison(true, Operator.EQUAL);
             break;
         default:
-            // Unimplemented case statements: REGEX, LIKE, NOT_LIKE, NEAR, WITHIN, ENDING_WITH
+            // Unimplemented case statements: REGEX, LIKE, NOT_LIKE, NEAR, WITHIN,
+            // ENDING_WITH
             throw new UnsupportedOperationException("Expression type not supported: " + part.getType());
         }
 
@@ -119,37 +127,39 @@ public class FieldCriteria extends Criteria {
     }
 
     private void addContainsCondition() {
-        addFilterMethod(AWSFilterMethod.CONTAINS, fieldPath, nextVariable());
+        filter.append(String.format("contains ( %s, %s )", fieldPath, nextVariable()));
     }
 
     private void addIsNullCondition() {
-        addFilterMethod(AWSFilterMethod.NOT_EXISTS, fieldPath);
+        filter.append(String.format("attribute_not_exists ( %s )", fieldPath));
+
     }
 
     private void addIsNotNullCondition() {
-        addFilterMethod(AWSFilterMethod.EXISTS, fieldPath);
+        filter.append(String.format("attribute_exists ( %s )", fieldPath));
     }
 
     private void addStartingWithCondition() {
-        addFilterMethod(AWSFilterMethod.BEGINS_WITH, fieldPath, nextVariable());
-    }
-
-    private void addFilterMethod(AWSFilterMethod method, String... parms) {
-        String parameters = String.join(", ", parms);
-        filter.append(String.format("%s ( %s )", method, parameters));
+        filter.append(String.format("begins_with ( %s, %s )", fieldPath, nextVariable()));
     }
 
     private void addInCondition() {
-        List<String> parameters = new ArrayList<>();
-        for (int i = 1; i < part.getNumberOfArguments(); i++) {
-            parameters.add(nextVariable());
-        }
+        Object arg = arguments.next();
 
-        filter.append(String.format("%s IN ( %s )", fieldPath, String.join(", ", parameters)));
+        boolean isIterable = ClassUtils.isAssignable(Iterable.class, arg.getClass());
+        boolean isArray = ObjectUtils.isArray(arg);
+        Assert.isTrue(isIterable || isArray, "'In' criteria can only operate with Iterable or Array parameters");
+
+        Iterable<?> argIterator = isIterable ? ((Iterable<?>) arg) : Arrays.asList(ObjectUtils.toObjectArray(arg));
+
+        List<String> parameterNames = new ArrayList<>();
+        argIterator.forEach(a -> parameterNames.add(nextVariable(a)));
+
+        filter.append(String.format("%s IN ( %s )", fieldPath, String.join(", ", parameterNames)));
     }
 
     private void addComparison(Operator comparison) {
-        addComparison(iterator.next(), comparison);
+        addComparison(arguments.next(), comparison);
     }
 
     private void addComparison(Object value, Operator comparison) {
@@ -157,15 +167,15 @@ public class FieldCriteria extends Criteria {
         filter.append(comparison);
         filter.append(nextVariable(value));
     }
-    
+
     private void addBetweenCondition() {
         filter.append(String.format("%s BETWEEN %s AND %s", fieldPath, nextVariable(), nextVariable()));
     }
 
     private String nextVariable() {
-        return nextVariable(iterator.next());
+        return nextVariable(arguments.next());
     }
-    
+
     private String nextVariable(Object value) {
         // Since we're adding a bunch of variables to a larger context, we need to
         // generate unique names.
@@ -178,22 +188,6 @@ public class FieldCriteria extends Criteria {
 
     private static interface NoArgCondition {
         void addCondition();
-    }
-
-    private enum AWSFilterMethod {
-        NOT_EXISTS("attribute_not_exists"), BEGINS_WITH("begins_with"), EXISTS("attribute_exists"), CONTAINS(
-                "contains");
-
-        private String methodName;
-
-        private AWSFilterMethod(String methodName) {
-            this.methodName = methodName;
-        }
-
-        @Override
-        public String toString() {
-            return methodName;
-        }
     }
 
     private enum Operator {

@@ -17,9 +17,9 @@ import org.springframework.util.Assert;
 
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper.FailedBatch;
-import com.github.hrhdaniel.data.dynamodb.exception.IncompleteBatchException;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.amazonaws.services.dynamodbv2.datamodeling.PaginatedScanList;
+import com.github.hrhdaniel.data.dynamodb.exception.IncompleteBatchException;
 
 /**
  * DynamoDB Repository Implementation
@@ -53,7 +53,6 @@ public class DynamoCrudRepository<T, I extends Serializable> implements DynamoRe
     public void delete(I id) {
         T idObject = createIDInstance(id);
         delete(idObject);
-
     }
 
     @Override
@@ -81,8 +80,7 @@ public class DynamoCrudRepository<T, I extends Serializable> implements DynamoRe
 
     @Override
     public Iterable<T> findAll() {
-        DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
-        PaginatedScanList<T> scan = mapper.scan(domainType, scanExpression);
+        PaginatedScanList<T> scan = mapper.scan(domainType, new DynamoDBScanExpression());
         return scan;
     }
 
@@ -107,8 +105,6 @@ public class DynamoCrudRepository<T, I extends Serializable> implements DynamoRe
     @Override
     public <S extends T> S save(S item) {
         mapper.save(item);
-        // Does dynamo have auto-generated fields? If not, it may be safe just to return
-        // the item?
         return mapper.load(item);
     }
 
@@ -118,8 +114,6 @@ public class DynamoCrudRepository<T, I extends Serializable> implements DynamoRe
         if (!failedBatchList.isEmpty()) {
             throw new IncompleteBatchException(failedBatchList);
         }
-        // Does dynamo have auto-generated fields? If not, it may be safe just to return
-        // the items passed in?
         return findAllByItems(items);
     }
 

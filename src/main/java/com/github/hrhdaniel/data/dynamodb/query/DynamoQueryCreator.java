@@ -1,7 +1,9 @@
 package com.github.hrhdaniel.data.dynamodb.query;
 
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.repository.query.ParameterAccessor;
@@ -31,6 +33,7 @@ public class DynamoQueryCreator extends AbstractQueryCreator<DynamoSearch, Crite
 
     private int criteriaCount = 0;
     private boolean isScan = false;
+    private Set<String> scanReasons = new HashSet<>();
 
     private String indexName;
 
@@ -58,12 +61,14 @@ public class DynamoQueryCreator extends AbstractQueryCreator<DynamoSearch, Crite
             if (part.getType() != Type.SIMPLE_PROPERTY) {
                 // Only equals is supported for hashkey on queries, so we have to scan
                 isScan = true;
+                scanReasons.add("HashKey is not equals condition");
             }
             if (hashKey != null) {
                 // Found a second criteria for the HashKey. If it's exactly the same (which
                 // could be logical in the case of an "OR") it would have to be the same as the
                 // other instance found and we could still query... for now we'll just scan
                 isScan = true;
+                scanReasons.add("Multiple HashKey conditions found");
             }
             hashKey = new HashKeyCriteria(criteriaCount++, part, iterator);
             return hashKey;
@@ -72,6 +77,7 @@ public class DynamoQueryCreator extends AbstractQueryCreator<DynamoSearch, Crite
                 // Just like above, we could check if these are equal to still query instead of
                 // scan, but for now I'm lazy
                 isScan = true;
+                scanReasons.add("Multiple RangeKye conditions found");
             }
             rangeKey = new RangeKeyCriteria(criteriaCount++, part, iterator);
             return rangeKey;
@@ -91,6 +97,7 @@ public class DynamoQueryCreator extends AbstractQueryCreator<DynamoSearch, Crite
         // the hashkey and rangekey criteria would have to be the same and included on
         // both(all) sides of the OR, but we aren't implementing that ATM
         isScan = true;
+        scanReasons.add("'OR' condition found");
 
         return new Or(base, criteria);
     }
@@ -100,10 +107,11 @@ public class DynamoQueryCreator extends AbstractQueryCreator<DynamoSearch, Crite
         // TODO - Sorting
         if (hashKey == null) {
             isScan = true;
+            scanReasons.add("No HashKey condition found");
         }
 
         if (isScan) {
-            return new Scan(criteria, indexName);
+            return new Scan(criteria, indexName, scanReasons);
         } else {
             Criteria keys = hashKey;
             if (rangeKey != null) {
