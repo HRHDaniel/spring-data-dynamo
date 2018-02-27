@@ -115,7 +115,7 @@ public class CompsiteKeyBaseRepoMethodsIT implements SpringInitializationListene
         entity.setNested(nested);
         return entity;
     }
-    
+
     @Autowired
     private AmazonDynamoDB client;
 
@@ -124,12 +124,11 @@ public class CompsiteKeyBaseRepoMethodsIT implements SpringInitializationListene
 
     @Autowired
     private CompositeKeyRepository repository;
-    
+
     private List<CompositeKeyObject> loadedTestData = Arrays.asList(
-            createOne("Kit Cloudkicker", 1, "Air surfing"), 
+            createOne("Kit Cloudkicker", 1, "Air surfing"),
             createOne("Baloo", 2, "Pilot"),
-            createOne("Molly Cunningham", 1, "Button Nose")
-            ); 
+            createOne("Molly Cunningham", 1, "Button Nose"));
 
     @Before
     public void beforeTest() {
@@ -145,7 +144,7 @@ public class CompsiteKeyBaseRepoMethodsIT implements SpringInitializationListene
 
     @Test
     public void testCount() {
-        assertThat(repository.count(), is((long)loadedTestData.size()));
+        assertThat(repository.count(), is((long) loadedTestData.size()));
     }
 
     @Test
@@ -175,64 +174,65 @@ public class CompsiteKeyBaseRepoMethodsIT implements SpringInitializationListene
         // Then
         assertThat(repository.findOne(instance.getId()), IsNull.nullValue());
     }
-    
+
     @Test
     public void testDeleteItems() {
         repository.delete(loadedTestData);
-        
+
         loadedTestData.forEach(e -> {
             assertThat(repository.findOne(e.getId()), IsNull.nullValue());
         });
     }
-    
+
     @Test
     public void testDeleteAll() {
         repository.deleteAll();
-        
+
         loadedTestData.forEach(e -> {
             assertThat(repository.findOne(e.getId()), IsNull.nullValue());
         });
     }
-    
+
     @Test
     public void testExists() {
         boolean exists = repository.exists(loadedTestData.get(0).getId());
-        
+
         assertThat(exists, is(true));
     }
-    
+
     @Test
     public void testFindAll() {
         ArrayList<CompositeKeyObject> found = Lists.newArrayList(repository.findAll());
-        
+
         assertThat(found, containsInAnyOrder(loadedTestData.toArray()));
     }
-    
+
     @Test
     public void testFindAllInIDList() {
         List<CompositeKeyObject> lookForItems = loadedTestData.stream().limit(2).collect(Collectors.toList());
-        List<DynamoCompositeKey<String, Integer>> searchIDs = lookForItems.stream().map(e -> e.getId()).collect(Collectors.toList());
-        
+        List<DynamoCompositeKey<String, Integer>> searchIDs = lookForItems.stream().map(e -> e.getId())
+                .collect(Collectors.toList());
+
         ArrayList<CompositeKeyObject> found = Lists.newArrayList(repository.findAll(searchIDs));
 
         assertThat(found, containsInAnyOrder(lookForItems.toArray()));
     }
-    
+
     @Test
     public void testFindOne() {
         CompositeKeyObject expected = loadedTestData.get(0);
-        
+
         CompositeKeyObject found = repository.findOne(expected.getId());
-        
+
         assertThat(found, is(expected));
     }
-    
+
     @Test
     public void testSaveItem() {
         CompositeKeyObject created = createOne("Don Karnage", 4, "Pirate");
-        
+
         repository.save(created);
-        
+
         assertThat(repository.findOne(created.getId()), is(created));
     }
 
@@ -240,17 +240,15 @@ public class CompsiteKeyBaseRepoMethodsIT implements SpringInitializationListene
     public void testSaveItems() {
         List<CompositeKeyObject> newItems = Arrays.asList(
                 createOne("Don Karnage", 4, "Pirate"),
-                createOne("Mad Dog", 4, "Pirate")
-                );
-                
-        
+                createOne("Mad Dog", 4, "Pirate"));
+
         repository.save(newItems);
-        
+
         Iterable<CompositeKeyObject> all = repository.findAll();
-        
+
         List<CompositeKeyObject> expected = new ArrayList<>(loadedTestData);
         expected.addAll(newItems);
-        
+
         assertThat(all, containsInAnyOrder(expected.toArray()));
     }
 }

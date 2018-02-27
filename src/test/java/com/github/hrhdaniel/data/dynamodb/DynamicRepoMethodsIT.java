@@ -78,17 +78,16 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
 
     @Override
     public void afterClass() {
-         DynamoDB dynamoDB = new DynamoDB(client);
-         DeleteTableRequest deleteTableRequest =
-         mapper.generateDeleteTableRequest(CompositeKeyObject.class);
-         client.deleteTable(deleteTableRequest);
-         Table table = dynamoDB.getTable(deleteTableRequest.getTableName());
-        
-         try {
-         table.waitForDelete();
-         } catch (InterruptedException e) {
-         throw new RuntimeException(e);
-         }
+        DynamoDB dynamoDB = new DynamoDB(client);
+        DeleteTableRequest deleteTableRequest = mapper.generateDeleteTableRequest(CompositeKeyObject.class);
+        client.deleteTable(deleteTableRequest);
+        Table table = dynamoDB.getTable(deleteTableRequest.getTableName());
+
+        try {
+            table.waitForDelete();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -320,7 +319,7 @@ public class DynamicRepoMethodsIT implements SpringInitializationListener {
         List<String> resultNames = results.stream().map(CompositeKeyObject::getObjectName).collect(Collectors.toList());
         assertThat(resultNames, hasItem("King Louie"));
     }
-    
+
     @Test
     public void testNotContains() {
         int expectedResults = loadedTestData.size() - 1;

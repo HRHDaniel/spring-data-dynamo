@@ -113,7 +113,7 @@ public class HashKeyOnlyBaseRepoMethodsIT implements SpringInitializationListene
         entity.setNested(nested);
         return entity;
     }
-    
+
     @Autowired
     private AmazonDynamoDB client;
 
@@ -122,12 +122,11 @@ public class HashKeyOnlyBaseRepoMethodsIT implements SpringInitializationListene
 
     @Autowired
     private HashKeyOnlyRepository repository;
-    
+
     private List<HashKeyOnlyTestObject> loadedTestData = Arrays.asList(
-            createOne("Kit Cloudkicker", "Air surfing"), 
+            createOne("Kit Cloudkicker", "Air surfing"),
             createOne("Baloo", "Pilot"),
-            createOne("Molly Cunningham", "Button Nose")
-            ); 
+            createOne("Molly Cunningham", "Button Nose"));
 
     @Before
     public void beforeTest() {
@@ -143,7 +142,7 @@ public class HashKeyOnlyBaseRepoMethodsIT implements SpringInitializationListene
 
     @Test
     public void testCount() {
-        assertThat(repository.count(), is((long)loadedTestData.size()));
+        assertThat(repository.count(), is((long) loadedTestData.size()));
     }
 
     @Test
@@ -160,64 +159,64 @@ public class HashKeyOnlyBaseRepoMethodsIT implements SpringInitializationListene
 
         assertThat(repository.findOne("Baloo"), IsNull.nullValue());
     }
-    
+
     @Test
     public void testDeleteItems() {
         repository.delete(loadedTestData);
-        
+
         loadedTestData.forEach(e -> {
             assertThat(repository.findOne(e.getHashKey()), IsNull.nullValue());
         });
     }
-    
+
     @Test
     public void testDeleteAll() {
         repository.deleteAll();
-        
+
         loadedTestData.forEach(e -> {
             assertThat(repository.findOne(e.getHashKey()), IsNull.nullValue());
         });
     }
-    
+
     @Test
     public void testExists() {
         boolean exists = repository.exists(loadedTestData.get(0).getHashKey());
-        
+
         assertThat(exists, is(true));
     }
-    
+
     @Test
     public void testFindAll() {
         ArrayList<HashKeyOnlyTestObject> found = Lists.newArrayList(repository.findAll());
-        
+
         assertThat(found, containsInAnyOrder(loadedTestData.toArray()));
     }
-    
+
     @Test
     public void testFindAllInIDList() {
         List<HashKeyOnlyTestObject> lookForItems = loadedTestData.stream().limit(2).collect(Collectors.toList());
         List<String> searchIds = lookForItems.stream().map(e -> e.getHashKey()).collect(Collectors.toList());
-        
+
         ArrayList<HashKeyOnlyTestObject> found = Lists.newArrayList(repository.findAll(searchIds));
 
         assertThat(found, containsInAnyOrder(lookForItems.toArray()));
     }
-    
+
     @Test
     public void testFindOne() {
         HashKeyOnlyTestObject expected = loadedTestData.get(0);
-        
+
         HashKeyOnlyTestObject found = repository.findOne(expected.getHashKey());
-        
+
         assertThat(found, is(expected));
     }
-    
+
     @Test
     public void testSaveItem() {
         HashKeyOnlyTestObject created = createOne("Don Karnage", "Pirate");
-        
+
         repository.save(created);
-        
+
         assertThat(repository.findOne(created.getHashKey()), is(created));
     }
 
@@ -225,17 +224,15 @@ public class HashKeyOnlyBaseRepoMethodsIT implements SpringInitializationListene
     public void testSaveItems() {
         List<HashKeyOnlyTestObject> newItems = Arrays.asList(
                 createOne("Don Karnage", "Pirate"),
-                createOne("Mad Dog", "Pirate")
-                );
-                
-        
+                createOne("Mad Dog", "Pirate"));
+
         repository.save(newItems);
-        
+
         Iterable<HashKeyOnlyTestObject> all = repository.findAll();
-        
+
         List<HashKeyOnlyTestObject> expected = new ArrayList<>(loadedTestData);
         expected.addAll(newItems);
-        
+
         assertThat(all, containsInAnyOrder(expected.toArray()));
     }
 }
